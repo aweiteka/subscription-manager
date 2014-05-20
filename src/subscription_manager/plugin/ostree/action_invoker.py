@@ -87,6 +87,7 @@ class OstreeContentUpdateActionCommand(object):
         return report
 
     def update_origin_file(self, repo_config):
+        # TODO: broad exception handling here?
         updater = model.OstreeOriginUpdater(repo_config)
         updater.run()
 

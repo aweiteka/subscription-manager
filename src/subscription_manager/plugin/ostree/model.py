@@ -1,5 +1,22 @@
+#
+# Copyright (c) 2014 Red Hat, Inc.
+#
+# This software is licensed to you under the GNU General Public License,
+# version 2 (GPLv2). There is NO WARRANTY for this software, express or
+# implied, including the implied warranties of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. You should have received a copy of GPLv2
+# along with this software; if not, see
+# http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
+#
+# Red Hat trademarks are not licensed under GPLv2. No permission is
+# granted to use or replicate Red Hat trademarks that are incorporated
+# in this software or its documentation.
+#
+
 import logging
 import re
+import os
+import subprocess
 import sys
 
 from subscription_manager.plugin.ostree import config
@@ -258,31 +275,27 @@ class OstreeOriginUpdater(object):
         """
         Get path to the currently deployed origin file.
         """
-        # This is a tricky dep to satisfy. Isolated in this method so we can
-        # mock it out easily in tests, which will probably never have
-        # this available.
-        log.debug("sys.path: %s" % sys.path)
-        from gi.repository import OSTree
-        sysroot = OSTree.Sysroot.new_default()
-        sysroot.load(None)
-        booted = sysroot.get_booted_deployment()
-        #booted.get_osname()
-        deploydir = sysroot.get_deployment_directory(booted)
-        return sysroot.get_deployment_origin_path(deploydir)
+        # Can't load gobject3 introspection code as we use gobject2 in a couple
+        # places. Shell out to a separate script, assumed to be in same location
+        # as this module. Let the CalledProcessError bubble up.
+        try:
+            output = subprocess.check_output(["python",
+                os.path.join(os.path.dirname(__file__), "gi.py"),
+                '--deployed-origin'], stderr=subprocess.STDOUT)
+            output = output.strip()
+        except subprocess.CalledProcessError, e:
+            # Is this an OSTree system? Does it have pygobject3?
+            log.error("Error looking up OSTree origin file.")
+            log.error(e.output)
+            raise e
 
     def run(self):
         """
         Locate and update the currently deployed origin file.
         """
-
-
-        # FIXME: return early till we figure out gi/gobject conflicts
-        return
-
-
         self.originfile = self._get_deployed_origin()
         log.debug("Loading ostree origin file: %s" % self.originfile)
-        origin_cfg = config.OriginFileConfigParser(self.originfile)
+        origin_cfg = config.KeyFileConfigParser(self.originfile)
         old_refspec = origin_cfg.get('origin', 'refspec')
 
         # TODO: If our repo config has multiple remotes in it, which should we use?
