@@ -75,6 +75,9 @@ class OstreeContentUpdateActionCommand(object):
         # Now that we've updated the ostree repo config, we need to
         # update the currently deployed osname tree .origin file:
         # TODO: Does this need to be in the report? Is logging enough?
+        # Reload the repo config to pick up changes:
+        repo_config = model.OstreeConfig()
+        repo_config.load()
         self.update_origin_file(repo_config)
 
         # TODO: Populate with origin info
